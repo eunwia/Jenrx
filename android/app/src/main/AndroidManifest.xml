@@ -1,9 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
-        android:label="med_tracker"
+        android:label="JCares"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

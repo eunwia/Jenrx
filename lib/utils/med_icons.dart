@@ -20,3 +20,12 @@ String formatTime12(String time24) {
   if (hour == 0) hour = 12;
   return '$hour:$minute $period';
 }
+
+String formatDateReadable(String isoDate) {
+  final months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  final parts = isoDate.split('-');
+  final year = parts[0];
+  final month = int.parse(parts[1]);
+  final day = int.parse(parts[2]);
+  return '${months[month - 1]} $day, $year';
+}

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../db/database_helper.dart';
-import '../models/medication.dart';
 import '../models/med_log.dart';
+import '../utils/med_icons.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -40,9 +40,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _showDayDetail(DateTime day) async {
     final dateStr = DatabaseHelper.instance.formatDate(day);
-    final logs = await DatabaseHelper.instance.getLogsForDate(dateStr);
     final meds = await DatabaseHelper.instance.getActiveMedications();
     final medById = {for (var m in meds) m.id: m};
+    List<MedLog> logs = await DatabaseHelper.instance.getLogsForDate(dateStr);
 
     if (!mounted) return;
     showModalBottomSheet(
@@ -50,40 +50,85 @@ class _CalendarScreenState extends State<CalendarScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          shrinkWrap: true,
-          children: logs.map((log) {
-            final med = medById[log.medicationId];
-            final taken = log.isTaken;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: taken ? const Color(0xFFEAF7ED) : const Color(0xFFFBEAEA),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Icon(taken ? Icons.check_circle : Icons.cancel,
-                      color: taken ? Colors.green : Colors.red, size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(med?.name ?? 'Unknown', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text('${log.scheduledTime}'
-                            '${taken ? ' • taken at ${log.takenAt!.substring(11, 16)}' : ' • missed'}',
-                            style: TextStyle(fontSize: 15, color: Colors.grey[700])),
-                      ],
-                    ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(formatDateReadable(dateStr),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (logs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('No entries for this day.', style: TextStyle(fontSize: 16))),
+                )
+              else
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: logs.map((log) {
+                      final med = medById[log.medicationId];
+                      final taken = log.isTaken;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: taken ? const Color(0xFFEAF7ED) : const Color(0xFFFBEAEA),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(taken ? Icons.check_circle : Icons.cancel,
+                                color: taken ? Colors.green : Colors.red, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(med?.name ?? 'Unknown',
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                  Text(
+                                    formatTime12(log.scheduledTime) +
+                                        (taken
+                                            ? ' • taken at ${formatTime12(log.takenAt!.substring(11, 16))}'
+                                            : ' • missed'),
+                                    style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Delete this entry?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await DatabaseHelper.instance.deleteLog(log.id!);
+                                  final refreshed = await DatabaseHelper.instance.getLogsForDate(dateStr);
+                                  setSheetState(() => logs = refreshed);
+                                  _loadMonth(_focusedDay);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
-                ],
-              ),
-            );
-          }).toList(),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -120,14 +165,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
               headerStyle: const HeaderStyle(
                 formatButtonVisible: false,
                 titleCentered: true,
-                titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
               ),
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(color: _blue.withOpacity(0.15), shape: BoxShape.circle),
                 todayTextStyle: const TextStyle(color: _blue, fontWeight: FontWeight.bold),
                 selectedDecoration: const BoxDecoration(color: _blue, shape: BoxShape.circle),
-                defaultTextStyle: const TextStyle(fontSize: 16),
-                weekendTextStyle: const TextStyle(fontSize: 16),
+                defaultTextStyle: const TextStyle(fontSize: 16, color: Colors.black87),
+                weekendTextStyle: const TextStyle(fontSize: 16, color: Colors.black87),
               ),
               onPageChanged: (day) {
                 _focusedDay = day;
