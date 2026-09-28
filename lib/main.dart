@@ -5,9 +5,9 @@ import 'services/app_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.init();
   await AppSettings.instance.load();
   runApp(const MedTrackerApp());
+  NotificationService.init();
 }
 
 class MedTrackerApp extends StatelessWidget {
@@ -19,7 +19,7 @@ class MedTrackerApp extends StatelessWidget {
       builder: (context, _) {
         final settings = AppSettings.instance;
         return MaterialApp(
-          title: 'Med Tracker',
+          title: 'JCares',
           debugShowCheckedModeBanner: false,
           themeMode: settings.themeMode,
           theme: ThemeData(

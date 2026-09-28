@@ -7,6 +7,7 @@ class Medication {
   final int isArchived;
   final String icon;
   final String purpose;
+  final String color;
 
   Medication({
     this.id,
@@ -17,6 +18,7 @@ class Medication {
     this.isArchived = 0,
     this.icon = 'pill',
     this.purpose = '',
+    this.color = '1565F5',
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class Medication {
       'is_archived': isArchived,
       'icon': icon,
       'purpose': purpose,
+      'color': color,
     };
   }
 
@@ -42,6 +45,7 @@ class Medication {
       isArchived: map['is_archived'],
       icon: (map['icon'] as String?) ?? 'pill',
       purpose: (map['purpose'] as String?) ?? '',
+      color: (map['color'] as String?) ?? '1565F5',
     );
   }
 

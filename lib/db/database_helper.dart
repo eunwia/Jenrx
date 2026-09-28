@@ -19,7 +19,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'med_tracker.db');
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -35,7 +35,8 @@ class DatabaseHelper {
         frequency TEXT NOT NULL,
         is_archived INTEGER NOT NULL DEFAULT 0,
         icon TEXT NOT NULL DEFAULT 'pill',
-        purpose TEXT NOT NULL DEFAULT ''
+        purpose TEXT NOT NULL DEFAULT '',
+        color TEXT NOT NULL DEFAULT '1565F5'
       )
     ''');
 
@@ -149,6 +150,9 @@ class DatabaseHelper {
     }
     if (oldVersion < 9) {
       await db.execute("ALTER TABLE medications ADD COLUMN purpose TEXT DEFAULT ''");
+    }
+    if (oldVersion < 10) {
+      await db.execute("ALTER TABLE medications ADD COLUMN color TEXT DEFAULT '1565F5'");
     }
   }
 
@@ -307,6 +311,20 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAlbums() async {
     final db = await database;
     return db.query('albums', orderBy: 'date_created DESC');
+  }
+
+  Future<Map<int, Map<String, dynamic>>> getAlbumSummaries() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT a.album_id AS album_id, a.cnt AS cnt, i.image_path AS cover
+      FROM (SELECT album_id, COUNT(*) AS cnt, MAX(id) AS last_id
+            FROM album_items GROUP BY album_id) a
+      JOIN album_items i ON i.id = a.last_id
+    ''');
+    return {
+      for (final r in rows)
+        r['album_id'] as int: {'count': r['cnt'], 'cover': r['cover']},
+    };
   }
 
   Future<void> updateAlbum(int id, String title, String color) async {

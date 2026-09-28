@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../models/medication.dart';
 import '../models/med_log.dart';
+import '../utils/album_colors.dart';
 import '../utils/med_icons.dart';
 import 'add_medication_screen.dart';
 
@@ -71,6 +72,7 @@ class DashboardScreenState extends State<DashboardScreen> {
         final MedLog log = _items[index]['log'];
         final Medication med = _items[index]['med'];
         final taken = log.isTaken;
+        final medColor = colorFromHex(med.color);
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final cardColor = taken
             ? (isDark ? const Color(0xFF1B3A25) : const Color(0xFFEAF7ED))
@@ -92,10 +94,10 @@ class DashboardScreenState extends State<DashboardScreen> {
               Container(
                 width: 56, height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8EFFD),
+                  color: medColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(iconForKey(med.icon), color: const Color(0xFF1565F5), size: 30),
+                child: Icon(iconForKey(med.icon), color: medColor, size: 30),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -107,11 +109,11 @@ class DashboardScreenState extends State<DashboardScreen> {
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1565F5).withOpacity(0.12),
+                          color: medColor.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(med.purpose,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1565F5))),
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: medColor)),
                       ),
                     Text(med.name, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 6),
@@ -143,7 +145,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                 child: Container(
                   width: 64, height: 64,
                   decoration: BoxDecoration(
-                    color: taken ? Colors.green : const Color(0xFF1565F5),
+                    color: taken ? Colors.green : medColor,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

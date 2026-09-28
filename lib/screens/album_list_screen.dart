@@ -1,7 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../utils/album_colors.dart';
-import '../utils/med_icons.dart';
 import 'album_detail_screen.dart';
 
 class AlbumListScreen extends StatefulWidget {
@@ -12,13 +12,24 @@ class AlbumListScreen extends StatefulWidget {
 
 class _AlbumListScreenState extends State<AlbumListScreen> {
   List<Map<String, dynamic>> _albums = [];
+  Map<int, Map<String, dynamic>> _summaries = {};
+
+  static const _shape = BorderRadius.only(
+    topLeft: Radius.circular(22),
+    topRight: Radius.circular(22),
+    bottomLeft: Radius.circular(40),
+    bottomRight: Radius.circular(40),
+  );
 
   @override
   void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    final albums = await DatabaseHelper.instance.getAlbums();
-    setState(() => _albums = albums);
+    final db = DatabaseHelper.instance;
+    final albums = await db.getAlbums();
+    final summaries = await db.getAlbumSummaries();
+    if (!mounted) return;
+    setState(() { _albums = albums; _summaries = summaries; });
   }
 
   Widget _colorPicker(String selected, void Function(String) onPick, StateSetter setSheetState) {
@@ -136,10 +147,112 @@ class _AlbumListScreenState extends State<AlbumListScreen> {
     );
   }
 
+  Widget _backCard(Color c, double angle) => Transform.rotate(
+        angle: angle,
+        child: FractionallySizedBox(
+          widthFactor: 0.72,
+          heightFactor: 0.9,
+          child: Container(decoration: BoxDecoration(color: c, borderRadius: _shape)),
+        ),
+      );
+
+  Widget _tile(Map<String, dynamic> album) {
+    final color = colorFromHex(album['color'] ?? '1565F5');
+    final summary = _summaries[album['id'] as int];
+    final count = (summary?['count'] as int?) ?? 0;
+    final cover = summary?['cover'] as String?;
+    final desc = album['description'] as String?;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    const folderIcon = Center(child: Icon(Icons.folder, color: Colors.white, size: 44));
+
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(context,
+            MaterialPageRoute(builder: (_) => AlbumDetailScreen(album: album)));
+        _load();
+      },
+      child: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              alignment: Alignment.center,
+              children: [
+                _backCard(color.withOpacity(0.35), -0.14),
+                _backCard(color.withOpacity(0.6), 0.12),
+                FractionallySizedBox(
+                  widthFactor: 0.72,
+                  heightFactor: 0.9,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: _shape,
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: _shape,
+                      child: cover != null
+                          ? Image.file(File(cover),
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              cacheWidth: 300,
+                              errorBuilder: (_, __, ___) => folderIcon)
+                          : folderIcon,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 2,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _editAlbum(album),
+                      child: const SizedBox(
+                        width: 44, height: 44,
+                        child: Icon(Icons.edit, size: 20, color: Colors.black54),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(album['title'],
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+          const SizedBox(height: 2),
+          Text(count == 0 ? 'Empty' : '$count ${count == 1 ? 'photo' : 'photos'}',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          if (desc != null && desc.isNotEmpty)
+            Text(desc,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? null : const Color(0xFFF3F0EA);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Prescriptions & Lab Results')),
+      backgroundColor: bg,
+      appBar: AppBar(
+        title: const Text('Prescriptions & Lab Results'),
+        backgroundColor: bg,
+        scrolledUnderElevation: 0,
+      ),
       body: _albums.isEmpty
           ? Center(
               child: Column(
@@ -151,58 +264,20 @@ class _AlbumListScreenState extends State<AlbumListScreen> {
                 ],
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
+          : GridView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 20,
+                childAspectRatio: 0.68,
+              ),
               itemCount: _albums.length,
-              itemBuilder: (context, i) {
-                final album = _albums[i];
-                final color = colorFromHex(album['color'] ?? '1565F5');
-                return GestureDetector(
-                  onTap: () async {
-                    await Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => AlbumDetailScreen(album: album)));
-                    _load();
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 14),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56, height: 56,
-                          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
-                          child: Icon(Icons.folder, color: color, size: 30),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(album['title'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              if (album['description'] != null)
-                                Text(album['description'], style: TextStyle(fontSize: 15, color: Colors.grey[600])),
-                              Text(formatDateReadable(album['date_created']),
-                                  style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.black54),
-                          onPressed: () => _editAlbum(album),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              itemBuilder: (context, i) => _tile(_albums[i]),
             ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF1565F5),
+        backgroundColor: isDark ? const Color(0xFF1565F5) : const Color(0xFF2B1210),
+        shape: const CircleBorder(),
         onPressed: _createAlbum,
         child: const Icon(Icons.create_new_folder, color: Colors.white),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../db/database_helper.dart';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,14 +12,19 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    });
+    _start();
+  }
+
+  Future<void> _start() async {
+    await Future.wait([
+      DatabaseHelper.instance.database,
+      Future.delayed(const Duration(milliseconds: 1200)),
+    ]);
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../models/medication.dart';
 import '../services/notification_service.dart';
+import '../utils/album_colors.dart';
 import '../utils/med_icons.dart';
 
 class AddMedicationScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   bool _everyDay = true;
   final Set<int> _selectedDays = {};
   String _selectedIcon = 'pill';
+  String _selectedColor = albumColorHex[0];
 
   final List<String> _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -35,6 +37,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       _purposeController.text = med.purpose;
       _selectedTimes.addAll(med.timeList);
       _selectedIcon = med.icon;
+      _selectedColor = med.color;
       if (med.frequency != 'daily') {
         _everyDay = false;
         _selectedDays.addAll(med.frequency.split(',').map(int.parse));
@@ -87,6 +90,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       frequency: frequency,
       icon: _selectedIcon,
       purpose: _purposeController.text.trim(),
+      color: _selectedColor,
     );
 
     if (isEditing) {
@@ -104,6 +108,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           frequency: med.frequency,
           icon: med.icon,
           purpose: med.purpose,
+          color: med.color,
         ),
       );
     }
@@ -141,6 +146,8 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
+    final chosen = colorFromHex(_selectedColor);
+
     return Scaffold(
       appBar: AppBar(title: Text(isEditing ? 'Edit Medication' : 'Add Medication')),
       body: Form(
@@ -189,10 +196,31 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   child: Container(
                     width: 52, height: 52,
                     decoration: BoxDecoration(
-                      color: selected ? const Color(0xFF1565F5) : const Color(0xFFE8EFFD),
+                      color: selected ? chosen : chosen.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(entry.value, color: selected ? Colors.white : const Color(0xFF1565F5)),
+                    child: Icon(entry.value, color: selected ? Colors.white : chosen),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 28),
+            const Text('Color', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              children: albumColorHex.map((hex) {
+                final selected = hex == _selectedColor;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedColor = hex),
+                  child: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: colorFromHex(hex),
+                      shape: BoxShape.circle,
+                      border: selected ? Border.all(color: Colors.black87, width: 3) : null,
+                    ),
+                    child: selected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
                   ),
                 );
               }).toList(),
