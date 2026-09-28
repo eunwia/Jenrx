@@ -19,7 +19,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'med_tracker.db');
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -34,7 +34,8 @@ class DatabaseHelper {
         times TEXT NOT NULL,
         frequency TEXT NOT NULL,
         is_archived INTEGER NOT NULL DEFAULT 0,
-        icon TEXT NOT NULL DEFAULT 'pill'
+        icon TEXT NOT NULL DEFAULT 'pill',
+        purpose TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -146,6 +147,9 @@ class DatabaseHelper {
     if (oldVersion < 8) {
       await db.execute("ALTER TABLE albums ADD COLUMN color TEXT DEFAULT '1565F5'");
     }
+    if (oldVersion < 9) {
+      await db.execute("ALTER TABLE medications ADD COLUMN purpose TEXT DEFAULT ''");
+    }
   }
 
   // --- Medications ---
@@ -189,6 +193,11 @@ class DatabaseHelper {
     final db = await database;
     await db.update('logs', {'taken_at': null},
         where: 'id = ?', whereArgs: [logId]);
+  }
+
+  Future<void> deleteLog(int id) async {
+    final db = await database;
+    await db.delete('logs', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<List<MedLog>> getLogsForDate(String date) async {
@@ -348,9 +357,5 @@ class DatabaseHelper {
   Future<void> deleteStock(int id) async {
     final db = await database;
     await db.delete('medicine_stock', where: 'id = ?', whereArgs: [id]);
-  }
-  Future<void> deleteLog(int id) async {
-    final db = await database;
-    await db.delete('logs', where: 'id = ?', whereArgs: [id]);
   }
 }

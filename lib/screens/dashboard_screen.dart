@@ -102,11 +102,25 @@ class DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (med.purpose.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1565F5).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(med.purpose,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1565F5))),
+                      ),
                     Text(med.name, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 6),
-                    Text('Dosage: ${med.dosage}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-                    const SizedBox(height: 2),
-                    Text('Time: ${formatTime12(log.scheduledTime)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                    if (med.dosage.isNotEmpty)
+                      Text('Dosage: ${med.dosage}',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                    if (med.dosage.isNotEmpty) const SizedBox(height: 2),
+                    Text('Time: ${formatTime12(log.scheduledTime)}',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
                   ],
                 ),
               ),

@@ -6,15 +6,17 @@ class Medication {
   final String frequency;
   final int isArchived;
   final String icon;
+  final String purpose;
 
   Medication({
     this.id,
     required this.name,
-    required this.dosage,
+    this.dosage = '',
     required this.times,
     required this.frequency,
     this.isArchived = 0,
     this.icon = 'pill',
+    this.purpose = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class Medication {
       'frequency': frequency,
       'is_archived': isArchived,
       'icon': icon,
+      'purpose': purpose,
     };
   }
 
@@ -33,11 +36,12 @@ class Medication {
     return Medication(
       id: map['id'],
       name: map['name'],
-      dosage: map['dosage'],
+      dosage: (map['dosage'] as String?) ?? '',
       times: map['times'],
       frequency: map['frequency'],
       isArchived: map['is_archived'],
-      icon: map['icon'] ?? 'pill',
+      icon: (map['icon'] as String?) ?? 'pill',
+      purpose: (map['purpose'] as String?) ?? '',
     );
   }
 

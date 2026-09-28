@@ -16,6 +16,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _dosageController = TextEditingController();
+  final _purposeController = TextEditingController();
 
   final List<String> _selectedTimes = [];
   bool _everyDay = true;
@@ -31,6 +32,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     if (med != null) {
       _nameController.text = med.name;
       _dosageController.text = med.dosage;
+      _purposeController.text = med.purpose;
       _selectedTimes.addAll(med.timeList);
       _selectedIcon = med.icon;
       if (med.frequency != 'daily') {
@@ -84,6 +86,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       times: _selectedTimes.join(','),
       frequency: frequency,
       icon: _selectedIcon,
+      purpose: _purposeController.text.trim(),
     );
 
     if (isEditing) {
@@ -100,6 +103,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           times: med.times,
           frequency: med.frequency,
           icon: med.icon,
+          purpose: med.purpose,
         ),
       );
     }
@@ -130,6 +134,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   void dispose() {
     _nameController.dispose();
     _dosageController.dispose();
+    _purposeController.dispose();
     super.dispose();
   }
 
@@ -158,11 +163,19 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
               controller: _dosageController,
               style: const TextStyle(fontSize: 20),
               decoration: const InputDecoration(
-                labelText: 'Dosage (e.g. 1 Tablet, 5ml)',
+                labelText: 'Dosage (optional, e.g. 1 Tablet)',
                 border: OutlineInputBorder(),
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _purposeController,
+              style: const TextStyle(fontSize: 20),
+              decoration: const InputDecoration(
+                labelText: 'For / Purpose (optional)',
+                hintText: 'e.g. Mom, My vitamins',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 28),
             const Text('Icon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -192,7 +205,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
               runSpacing: 10,
               children: [
                 ..._selectedTimes.map((t) => Chip(
-                      label: Text(t, style: const TextStyle(fontSize: 16)),
+                      label: Text(formatTime12(t), style: const TextStyle(fontSize: 16)),
                       onDeleted: () => setState(() => _selectedTimes.remove(t)),
                     )),
                 ActionChip(

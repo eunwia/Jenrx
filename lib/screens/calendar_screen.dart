@@ -136,17 +136,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final perfectDays = _compliance.values.where((v) => v == 'green').length;
     return SingleChildScrollView(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Image.asset('assets/images/jen_calendar.png', height: 140),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Track your medicine intake',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Track your medicine intake',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                      const SizedBox(height: 4),
+                      Text('$perfectDays perfect ${perfectDays == 1 ? 'day' : 'days'}',
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      const Text('Tap a date to see details',
+                          style: TextStyle(fontSize: 14, color: _blue, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                Image.asset('assets/images/jen_calendar.png', height: 110),
+              ],
+            ),
           ),
           Container(
             margin: const EdgeInsets.all(16),
