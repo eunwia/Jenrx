@@ -35,7 +35,11 @@ class _MascotCompanionState extends State<MascotCompanion>
   late final AnimationController _floatController;
   late final AnimationController _blinkController;
   late final AnimationController _bounceController;
+  late final AnimationController _swirlController;
+
   Timer? _blinkTimer;
+  Timer? _swirlTimer;
+  bool _appIsResumed = true;
 
   @override
   void initState() {
@@ -60,7 +64,14 @@ class _MascotCompanionState extends State<MascotCompanion>
       duration: const Duration(milliseconds: 600),
     );
 
+    // Smooth, playful 10-second swirl / spin animation
+    _swirlController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+
     _scheduleNextBlink();
+    _startSwirlTimer();
 
     if (widget.mood == CompanionMood.celebrating) {
       _triggerCelebration();
@@ -78,12 +89,13 @@ class _MascotCompanionState extends State<MascotCompanion>
 
   void _triggerCelebration() {
     _bounceController.forward(from: 0.0);
+    _swirlController.forward(from: 0.0);
   }
 
   void _scheduleNextBlink() {
     _blinkTimer?.cancel();
     _blinkTimer = Timer(Duration(milliseconds: 2600 + math.Random().nextInt(2000)), () {
-      if (mounted) {
+      if (mounted && _appIsResumed) {
         _blinkController.forward().then((_) {
           if (mounted) {
             _blinkController.reverse().then((_) => _scheduleNextBlink());
@@ -93,14 +105,27 @@ class _MascotCompanionState extends State<MascotCompanion>
     });
   }
 
+  void _startSwirlTimer() {
+    _swirlTimer?.cancel();
+    _swirlTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted && _appIsResumed && !_swirlController.isAnimating) {
+        _swirlController.forward(from: 0.0);
+      }
+    });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _appIsResumed = true;
       if (!_floatController.isAnimating) _floatController.repeat(reverse: true);
       _scheduleNextBlink();
+      _startSwirlTimer();
     } else {
+      _appIsResumed = false;
       _floatController.stop();
       _blinkTimer?.cancel();
+      _swirlTimer?.cancel();
     }
   }
 
@@ -108,14 +133,19 @@ class _MascotCompanionState extends State<MascotCompanion>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _blinkTimer?.cancel();
+    _swirlTimer?.cancel();
     _floatController.dispose();
     _blinkController.dispose();
     _bounceController.dispose();
+    _swirlController.dispose();
     super.dispose();
   }
 
   void _handleTap() {
     _bounceController.forward(from: 0.0);
+    if (!_swirlController.isAnimating) {
+      _swirlController.forward(from: 0.0);
+    }
     widget.onTap?.call();
   }
 
@@ -147,6 +177,26 @@ class _MascotCompanionState extends State<MascotCompanion>
       ),
     );
 
+    final swirlAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
+      CurvedAnimation(
+        parent: _swirlController,
+        curve: Curves.easeInOutCubic,
+      ),
+    );
+
+    final swirlScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.08)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.08, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+    ]).animate(_swirlController);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -170,18 +220,28 @@ class _MascotCompanionState extends State<MascotCompanion>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Animated Mascot Character
+          // Animated Mascot Character (Pip)
           GestureDetector(
             onTap: _handleTap,
             child: AnimatedBuilder(
-              animation: Listenable.merge([_floatController, _bounceController]),
+              animation: Listenable.merge([
+                _floatController,
+                _bounceController,
+                _swirlController,
+              ]),
               builder: (context, child) {
                 final floatOffset = reduceMotion ? 0.0 : math.sin(_floatController.value * 2 * math.pi) * 3.0;
                 final totalOffset = floatOffset + bounceAnimation.value;
 
                 return Transform.translate(
-                  offset: Offset(0, totalOffset),
-                  child: child,
+                  offset: Offset(0.0, totalOffset),
+                  child: Transform.scale(
+                    scale: reduceMotion ? 1.0 : swirlScale.value,
+                    child: Transform.rotate(
+                      angle: reduceMotion ? 0.0 : swirlAnimation.value,
+                      child: child,
+                    ),
+                  ),
                 );
               },
               child: AnimatedBuilder(
@@ -291,7 +351,7 @@ class _PipMascotPainter extends CustomPainter {
     final bodyRRect = RRect.fromRectAndRadius(pillRect, Radius.circular(r));
     canvas.clipRRect(bodyRRect);
 
-    // Top half: Premium Health Blue / Teal
+    // Top half: Premium Health Blue
     final topHalfPaint = Paint()
       ..shader = const LinearGradient(
         colors: [Color(0xFF007AFF), Color(0xFF0056D2)],
@@ -303,7 +363,7 @@ class _PipMascotPainter extends CustomPainter {
       topHalfPaint,
     );
 
-    // Bottom half: Pure Soft Warm White / Subtle Tint
+    // Bottom half: Pure Soft Warm White
     final bottomHalfPaint = Paint()
       ..color = isDark ? const Color(0xFFE4E9F2) : const Color(0xFFF9FBFF);
     canvas.drawRect(
@@ -411,7 +471,6 @@ class _PipMascotPainter extends CustomPainter {
     }
 
     // --- CHEST EMBLEM ---
-    // Tiny Medical Plus / Heart on the bottom half
     final chestY = pillRect.top + pillRect.height * 0.72;
     final chestPaint = Paint()
       ..color = AppColors.primary.withValues(alpha: 0.85)

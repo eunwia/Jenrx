@@ -76,7 +76,6 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) => StatefulBuilder(
         builder: (modalContext, setSheetState) => CustomBottomSheet(
           title: 'Log New Purchase',

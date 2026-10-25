@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:med_tracker/models/medication.dart';
 import 'package:med_tracker/models/med_log.dart';
+import 'package:med_tracker/models/appointment.dart';
+import 'package:med_tracker/services/app_settings.dart';
 import 'package:med_tracker/utils/album_colors.dart';
 import 'package:med_tracker/utils/med_icons.dart';
 import 'package:med_tracker/theme/app_theme.dart';
@@ -105,6 +107,37 @@ void main() {
         ),
       );
       expect(find.textContaining('Next dose: Amlodipine at 8:00 AM'), findsOneWidget);
+    });
+
+    test('Appointment model serialization and formatting', () {
+      final appt = Appointment(
+        id: 1,
+        title: 'Cardiology Follow-up',
+        hospital: 'St. Luke Medical Center',
+        doctor: 'Dr. Santos',
+        date: '2026-11-15',
+        time: '14:30',
+        location: 'Room 402, Heart Center',
+        notes: 'Bring previous ECG results',
+        reminderMinutes: 60,
+      );
+
+      final map = appt.toMap();
+      expect(map['title'], 'Cardiology Follow-up');
+      expect(map['hospital'], 'St. Luke Medical Center');
+      expect(map['reminder_minutes'], 60);
+
+      final restored = Appointment.fromMap(map);
+      expect(restored.formattedTime, '2:30 PM');
+      expect(restored.formattedDate, 'November 15, 2026');
+      expect(restored.reminderLabel, '1 hour before');
+    });
+
+    test('AppTextSize enum and scale factors', () {
+      expect(AppTextSize.small.scaleFactor, 0.88);
+      expect(AppTextSize.medium.scaleFactor, 1.0);
+      expect(AppTextSize.large.scaleFactor, 1.18);
+      expect(AppTextSize.values.length, 3);
     });
   });
 }

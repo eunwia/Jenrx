@@ -82,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${(settings.fontScale * 100).round()}%',
+                              _sizeLabel(settings.textSize),
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -92,22 +92,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Slider(
-                        value: settings.fontScale,
-                        min: 0.85,
-                        max: 1.6,
-                        divisions: 5,
-                        activeColor: AppColors.primary,
-                        onChanged: (v) => setState(() => settings.setFontScale(v)),
-                      ),
+                      const SizedBox(height: 14),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('A', style: TextStyle(fontSize: 12, color: isDark ? Colors.grey : Colors.grey[600])),
-                          Text('Default', style: TextStyle(fontSize: 12, color: isDark ? Colors.grey : Colors.grey[600])),
-                          Text('A', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.grey : Colors.grey[600])),
+                          _buildTextSizeTile(AppTextSize.small, 'Small', isDark),
+                          const SizedBox(width: 8),
+                          _buildTextSizeTile(AppTextSize.medium, 'Medium', isDark),
+                          const SizedBox(width: 8),
+                          _buildTextSizeTile(AppTextSize.large, 'Large', isDark),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkSurfaceSubtle : const Color(0xFFF0F4F8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.remove_red_eye_outlined, size: 16, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Live Preview: Take 1 Tablet with water',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -249,6 +266,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  Widget _buildTextSizeTile(AppTextSize size, String label, bool isDark) {
+    final isSelected = settings.textSize == size;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => settings.setTextSize(size)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkSurfaceSubtle : const Color(0xFFF0F4F8)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primary
+                  : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Aa',
+                style: TextStyle(
+                  fontSize: size == AppTextSize.small
+                      ? 14
+                      : (size == AppTextSize.medium ? 17 : 20),
+                  fontWeight: FontWeight.w700,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _sizeLabel(AppTextSize size) => switch (size) {
+        AppTextSize.small => 'Small (88%)',
+        AppTextSize.medium => 'Medium (Default)',
+        AppTextSize.large => 'Large (118%)',
+      };
 
   Widget _buildSectionTitle(String title, bool isDark) {
     return Padding(

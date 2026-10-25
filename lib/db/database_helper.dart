@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/medication.dart';
 import '../models/med_log.dart';
+import '../models/appointment.dart';
 
 class DatabaseHelper {
   DatabaseHelper._privateConstructor();
@@ -19,7 +20,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'med_tracker.db');
     return await openDatabase(
       path,
-      version: 10,
+      version: 11,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -93,6 +94,20 @@ class DatabaseHelper {
         medication_id INTEGER
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE appointments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        hospital TEXT NOT NULL,
+        doctor TEXT,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        location TEXT,
+        notes TEXT,
+        reminder_minutes INTEGER DEFAULT 60
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -154,6 +169,21 @@ class DatabaseHelper {
     if (oldVersion < 10) {
       await db.execute("ALTER TABLE medications ADD COLUMN color TEXT DEFAULT '1565F5'");
     }
+    if (oldVersion < 11) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS appointments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          hospital TEXT NOT NULL,
+          doctor TEXT,
+          date TEXT NOT NULL,
+          time TEXT NOT NULL,
+          location TEXT,
+          notes TEXT,
+          reminder_minutes INTEGER DEFAULT 60
+        )
+      ''');
+    }
   }
 
   // --- Medications ---
@@ -169,15 +199,16 @@ class DatabaseHelper {
     return maps.map((m) => Medication.fromMap(m)).toList();
   }
 
+  Future<void> updateMedication(Medication med) async {
+    final db = await database;
+    await db.update('medications', med.toMap(),
+        where: 'id = ?', whereArgs: [med.id]);
+  }
+
   Future<void> archiveMedication(int id) async {
     final db = await database;
     await db.update('medications', {'is_archived': 1},
         where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<void> updateMedication(Medication med) async {
-    final db = await database;
-    await db.update('medications', med.toMap(), where: 'id = ?', whereArgs: [med.id]);
   }
 
   // --- Logs ---
@@ -249,20 +280,28 @@ class DatabaseHelper {
     final end = '$year-${month.toString().padLeft(2, '0')}-31';
 
     final logs = await db.query('logs',
-        where: 'log_date BETWEEN ? AND ?', whereArgs: [start, end]);
+        where: 'log_date >= ? AND log_date <= ?',
+        whereArgs: [start, end]);
 
-    final Map<String, List<bool>> byDate = {};
-    for (final row in logs) {
-      final date = row['log_date'] as String;
-      final taken = row['taken_at'] != null;
-      byDate.putIfAbsent(date, () => []).add(taken);
+    final logsByDate = <String, List<Map<String, dynamic>>>{};
+    for (final l in logs) {
+      final date = l['log_date'] as String;
+      logsByDate.putIfAbsent(date, () => []).add(l);
     }
 
-    return byDate.map((date, list) {
-      final allTaken = list.every((t) => t);
-      final noneTaken = list.every((t) => !t);
-      return MapEntry(date, allTaken ? 'green' : (noneTaken ? 'red' : 'yellow'));
-    });
+    final result = <String, String>{};
+    for (final entry in logsByDate.entries) {
+      final total = entry.value.length;
+      final taken = entry.value.where((l) => l['taken_at'] != null).length;
+      if (taken == total && total > 0) {
+        result[entry.key] = 'green';
+      } else if (taken > 0) {
+        result[entry.key] = 'yellow';
+      } else {
+        result[entry.key] = 'red';
+      }
+    }
+    return result;
   }
 
   // --- Blood Pressure ---
@@ -375,5 +414,65 @@ class DatabaseHelper {
   Future<void> deleteStock(int id) async {
     final db = await database;
     await db.delete('medicine_stock', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --- Hospital Appointments ---
+
+  Future<int> insertAppointment(Appointment appt) async {
+    final db = await database;
+    return db.insert('appointments', appt.toMap());
+  }
+
+  Future<void> updateAppointment(Appointment appt) async {
+    final db = await database;
+    await db.update('appointments', appt.toMap(),
+        where: 'id = ?', whereArgs: [appt.id]);
+  }
+
+  Future<void> deleteAppointment(int id) async {
+    final db = await database;
+    await db.delete('appointments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Appointment>> getAllAppointments() async {
+    final db = await database;
+    final rows = await db.query('appointments', orderBy: 'date ASC, time ASC');
+    return rows.map((r) => Appointment.fromMap(r)).toList();
+  }
+
+  Future<List<Appointment>> getUpcomingAppointments() async {
+    final db = await database;
+    final today = formatDate(DateTime.now());
+    final rows = await db.query(
+      'appointments',
+      where: 'date >= ?',
+      whereArgs: [today],
+      orderBy: 'date ASC, time ASC',
+    );
+    return rows.map((r) => Appointment.fromMap(r)).toList();
+  }
+
+  Future<List<Appointment>> getAppointmentsForDate(String date) async {
+    final db = await database;
+    final rows = await db.query(
+      'appointments',
+      where: 'date = ?',
+      whereArgs: [date],
+      orderBy: 'time ASC',
+    );
+    return rows.map((r) => Appointment.fromMap(r)).toList();
+  }
+
+  Future<Set<String>> getAppointmentDatesForMonth(int year, int month) async {
+    final db = await database;
+    final start = '$year-${month.toString().padLeft(2, '0')}-01';
+    final end = '$year-${month.toString().padLeft(2, '0')}-31';
+    final rows = await db.query(
+      'appointments',
+      columns: ['date'],
+      where: 'date >= ? AND date <= ?',
+      whereArgs: [start, end],
+    );
+    return rows.map((r) => r['date'] as String).toSet();
   }
 }

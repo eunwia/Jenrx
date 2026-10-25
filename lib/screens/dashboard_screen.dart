@@ -381,14 +381,18 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildFilterRow(int total, int pending, int taken, bool isDark) {
-    return Row(
-      children: [
-        _buildFilterChip('all', 'All ($total)', isDark),
-        const SizedBox(width: 8),
-        _buildFilterChip('pending', 'Pending ($pending)', isDark),
-        const SizedBox(width: 8),
-        _buildFilterChip('taken', 'Taken ($taken)', isDark),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _buildFilterChip('all', 'All ($total)', isDark),
+          const SizedBox(width: 8),
+          _buildFilterChip('pending', 'Pending ($pending)', isDark),
+          const SizedBox(width: 8),
+          _buildFilterChip('taken', 'Taken ($taken)', isDark),
+        ],
+      ),
     );
   }
 
