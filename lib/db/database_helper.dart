@@ -327,9 +327,9 @@ class DatabaseHelper {
     };
   }
 
-  Future<void> updateAlbum(int id, String title, String color) async {
+  Future<void> updateAlbum(int id, String title, String? desc, String color) async {
     final db = await database;
-    await db.update('albums', {'title': title, 'color': color}, where: 'id = ?', whereArgs: [id]);
+    await db.update('albums', {'title': title, 'description': desc, 'color': color}, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> deleteAlbum(int id) async {

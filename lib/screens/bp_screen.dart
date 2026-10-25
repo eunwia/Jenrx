@@ -1,22 +1,36 @@
 import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
+import '../theme/app_theme.dart';
 import '../utils/med_icons.dart';
+import '../widgets/app_card.dart';
+import '../widgets/status_badge.dart';
+import '../widgets/custom_bottom_sheet.dart';
+import '../widgets/empty_state.dart';
 
 class BpScreen extends StatefulWidget {
   const BpScreen({super.key});
+
   @override
   State<BpScreen> createState() => _BpScreenState();
 }
 
 class _BpScreenState extends State<BpScreen> {
   List<Map<String, dynamic>> _logs = [];
+  bool _loading = true;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+  }
 
   Future<void> _load() async {
     final logs = await DatabaseHelper.instance.getRecentBp(limit: 30);
-    setState(() => _logs = logs);
+    if (!mounted) return;
+    setState(() {
+      _logs = logs;
+      _loading = false;
+    });
   }
 
   String _category(int sys, int dia) {
@@ -25,108 +39,17 @@ class _BpScreenState extends State<BpScreen> {
     return 'Normal';
   }
 
-  Color _catColor(String cat) => switch (cat) {
-        'High' => Colors.red,
-        'Elevated' => Colors.orange,
-        _ => Colors.green,
+  BadgeVariant _catVariant(String cat) => switch (cat) {
+        'High' => BadgeVariant.danger,
+        'Elevated' => BadgeVariant.warning,
+        _ => BadgeVariant.success,
       };
 
-  Widget _header(Color textColor) {
-    String subtitle = 'Tap + to add your first reading';
-    if (_logs.isNotEmpty) {
-      final l = _logs.first;
-      final sys = l['systolic'] as int;
-      final dia = l['diastolic'] as int;
-      subtitle = 'Latest: $sys/$dia • ${_category(sys, dia)}';
-    }
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Track your blood pressure',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-                const SizedBox(height: 4),
-                Text('${_logs.length} ${_logs.length == 1 ? 'reading' : 'readings'}',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor)),
-                const SizedBox(height: 6),
-                Text(subtitle, style: const TextStyle(fontSize: 14, color: Color(0xFF1565F5), fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          Image.asset('assets/images/jen_bp.png', height: 110),
-        ],
-      ),
-    );
-  }
-
-  Widget _card(Map<String, dynamic> row, Color textColor) {
-    final sys = row['systolic'] as int;
-    final dia = row['diastolic'] as int;
-    final cat = _category(sys, dia);
-    final note = row['note'] as String?;
-
-    return GestureDetector(
-      onTap: () => _viewDetail(row),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 56, height: 56,
-              decoration: BoxDecoration(color: _catColor(cat).withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
-              child: Icon(Icons.favorite, color: _catColor(cat), size: 28),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text('$sys/$dia', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: _catColor(cat).withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                        child: Text(cat, style: TextStyle(color: _catColor(cat), fontWeight: FontWeight.bold, fontSize: 13)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${formatDateReadable(row['log_date'])} • ${formatTime12(row['log_time'])}'
-                    '${row['pulse'] != null ? ' • Pulse: ${row['pulse']}' : ''}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  if (note != null) ...[
-                    const SizedBox(height: 6),
-                    Text(note, style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey[700])),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Color _catColor(String cat) => switch (cat) {
+        'High' => AppColors.danger,
+        'Elevated' => AppColors.warning,
+        _ => AppColors.success,
+      };
 
   Future<void> _addReading() async {
     final sysCtrl = TextEditingController();
@@ -137,43 +60,68 @@ class _BpScreenState extends State<BpScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      builder: (bottomSheetContext) => CustomBottomSheet(
+        title: 'Add BP Reading',
+        subtitle: 'Enter your latest blood pressure measurement',
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Add BP Reading', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: TextField(controller: sysCtrl, keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18),
-                    decoration: const InputDecoration(labelText: 'Systolic', border: OutlineInputBorder()))),
+                Expanded(
+                  child: TextField(
+                    controller: sysCtrl,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    decoration: const InputDecoration(
+                      labelText: 'Systolic (SYS)',
+                      hintText: '120',
+                      suffixText: 'mmHg',
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: diaCtrl, keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18),
-                    decoration: const InputDecoration(labelText: 'Diastolic', border: OutlineInputBorder()))),
+                Expanded(
+                  child: TextField(
+                    controller: diaCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    decoration: const InputDecoration(
+                      labelText: 'Diastolic (DIA)',
+                      hintText: '80',
+                      suffixText: 'mmHg',
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(controller: pulseCtrl, keyboardType: TextInputType.number,
-                style: const TextStyle(fontSize: 18),
-                decoration: const InputDecoration(labelText: 'Pulse (optional)', border: OutlineInputBorder())),
-            const SizedBox(height: 12),
-            TextField(controller: noteCtrl, style: const TextStyle(fontSize: 18),
-                decoration: const InputDecoration(
-                    labelText: 'Note (optional)', hintText: 'e.g. before maintenance, after walk',
-                    border: OutlineInputBorder())),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            TextField(
+              controller: pulseCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 16),
+              decoration: const InputDecoration(
+                labelText: 'Pulse / Heart Rate (optional)',
+                hintText: '72',
+                suffixText: 'BPM',
+                prefixIcon: Icon(Icons.favorite_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: noteCtrl,
+              style: const TextStyle(fontSize: 15),
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+                hintText: 'e.g. After morning rest, before meds',
+                prefixIcon: Icon(Icons.notes_rounded),
+              ),
+            ),
+            const SizedBox(height: 24),
             SizedBox(
-              width: double.infinity, height: 56,
+              height: 52,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565F5), foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
                 onPressed: () async {
                   final sys = int.tryParse(sysCtrl.text);
                   final dia = int.tryParse(diaCtrl.text);
@@ -182,13 +130,20 @@ class _BpScreenState extends State<BpScreen> {
                   final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
                   final now = DateTime.now();
                   final db = DatabaseHelper.instance;
-                  await db.insertBp(db.formatDate(now),
-                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-                      sys, dia, pulse, note);
-                  if (mounted) Navigator.pop(context);
-                  _load();
+                  await db.insertBp(
+                    db.formatDate(now),
+                    '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+                    sys,
+                    dia,
+                    pulse,
+                    note,
+                  );
+                  if (bottomSheetContext.mounted) {
+                    Navigator.pop(bottomSheetContext);
+                  }
+                  if (mounted) _load();
                 },
-                child: const Text('Save Reading', style: TextStyle(fontSize: 18)),
+                child: const Text('Save Reading', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -206,60 +161,100 @@ class _BpScreenState extends State<BpScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      builder: (bottomSheetContext) => CustomBottomSheet(
+        title: 'Edit BP Reading',
+        subtitle: 'Logged on ${formatDateReadable(row['log_date'])} at ${formatTime12(row['log_time'])}',
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Edit BP Reading', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Logged on ${formatDateReadable(row['log_date'])} at ${formatTime12(row['log_time'])}',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-            const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: TextField(controller: sysCtrl, keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18),
-                    decoration: const InputDecoration(labelText: 'Systolic', border: OutlineInputBorder()))),
+                Expanded(
+                  child: TextField(
+                    controller: sysCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    decoration: const InputDecoration(
+                      labelText: 'Systolic',
+                      suffixText: 'mmHg',
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: diaCtrl, keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18),
-                    decoration: const InputDecoration(labelText: 'Diastolic', border: OutlineInputBorder()))),
+                Expanded(
+                  child: TextField(
+                    controller: diaCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    decoration: const InputDecoration(
+                      labelText: 'Diastolic',
+                      suffixText: 'mmHg',
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(controller: pulseCtrl, keyboardType: TextInputType.number,
-                style: const TextStyle(fontSize: 18),
-                decoration: const InputDecoration(labelText: 'Pulse (optional)', border: OutlineInputBorder())),
-            const SizedBox(height: 12),
-            TextField(controller: noteCtrl, style: const TextStyle(fontSize: 18),
-                decoration: const InputDecoration(labelText: 'Note (optional)', border: OutlineInputBorder())),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            TextField(
+              controller: pulseCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 16),
+              decoration: const InputDecoration(
+                labelText: 'Pulse (optional)',
+                suffixText: 'BPM',
+                prefixIcon: Icon(Icons.favorite_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: noteCtrl,
+              style: const TextStyle(fontSize: 15),
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+                prefixIcon: Icon(Icons.notes_rounded),
+              ),
+            ),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      side: const BorderSide(color: AppColors.danger, width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                     onPressed: () async {
                       final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete reading?'),
+                        context: bottomSheetContext,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Delete Reading?'),
+                          content: const Text('Are you sure you want to delete this reading?'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.danger,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(dCtx, true),
+                              child: const Text('Delete'),
+                            ),
                           ],
                         ),
                       );
                       if (confirm == true) {
                         await DatabaseHelper.instance.deleteBp(row['id'] as int);
-                        if (mounted) Navigator.pop(context);
-                        _load();
+                        if (bottomSheetContext.mounted) {
+                          Navigator.pop(bottomSheetContext);
+                        }
+                        if (mounted) _load();
                       }
                     },
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
                     label: const Text('Delete'),
                   ),
                 ),
@@ -267,9 +262,7 @@ class _BpScreenState extends State<BpScreen> {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1565F5), foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () async {
                       final sys = int.tryParse(sysCtrl.text);
@@ -277,11 +270,19 @@ class _BpScreenState extends State<BpScreen> {
                       if (sys == null || dia == null) return;
                       final pulse = int.tryParse(pulseCtrl.text);
                       final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
-                      await DatabaseHelper.instance.updateBp(row['id'] as int, sys, dia, pulse, note);
-                      if (mounted) Navigator.pop(context);
-                      _load();
+                      await DatabaseHelper.instance.updateBp(
+                        row['id'] as int,
+                        sys,
+                        dia,
+                        pulse,
+                        note,
+                      );
+                      if (bottomSheetContext.mounted) {
+                        Navigator.pop(bottomSheetContext);
+                      }
+                      if (mounted) _load();
                     },
-                    child: const Text('Save Changes', style: TextStyle(fontSize: 16)),
+                    child: const Text('Update'),
                   ),
                 ),
               ],
@@ -294,26 +295,294 @@ class _BpScreenState extends State<BpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Scaffold(
-      //appBar: AppBar(title: const Text('Blood Pressure')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
-          _header(textColor),
-          if (_logs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 24),
-              child: Center(child: Text('No readings yet.', style: TextStyle(fontSize: 18, color: Colors.grey))),
-            )
-          else
-            ..._logs.map((row) => _card(row, textColor)),
+          // Header / Latest Reading Card
+          _buildLatestCard(isDark),
+
+          const SizedBox(height: 20),
+
+          // Section Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'RECENT READINGS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  ),
+                ),
+                Text(
+                  '${_logs.length} logged',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          if (_logs.isEmpty) ...[
+            EmptyStateView(
+              icon: Icons.favorite_rounded,
+              title: 'No BP Readings Yet',
+              description: 'Track your blood pressure over time to monitor cardiovascular health.',
+              actionLabel: 'Log First Reading',
+              onAction: _addReading,
+            ),
+          ] else ...[
+            ..._logs.map((row) => _buildReadingCard(row, isDark)),
+          ],
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF1565F5),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
         onPressed: _addReading,
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text('Log BP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _buildLatestCard(bool isDark) {
+    if (_logs.isEmpty) {
+      return AppCard(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 26),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Track Blood Pressure',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Log systolic and diastolic readings with notes.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final latest = _logs.first;
+    final sys = latest['systolic'] as int;
+    final dia = latest['diastolic'] as int;
+    final cat = _category(sys, dia);
+    final pulse = latest['pulse'] as int?;
+
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'LATEST READING',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
+              ),
+              StatusBadge(
+                label: cat,
+                variant: _catVariant(cat),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '$sys / $dia',
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
+                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'mmHg',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
+              ),
+              const Spacer(),
+              if (pulse != null) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.favorite_rounded, color: AppColors.danger, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$pulse BPM',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Recorded ${formatDateReadable(latest['log_date'])} at ${formatTime12(latest['log_time'])}',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadingCard(Map<String, dynamic> row, bool isDark) {
+    final sys = row['systolic'] as int;
+    final dia = row['diastolic'] as int;
+    final cat = _category(sys, dia);
+    final note = row['note'] as String?;
+    final pulse = row['pulse'] as int?;
+    final catColor = _catColor(cat);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        onTap: () => _viewDetail(row),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: catColor.withValues(alpha: isDark ? 0.25 : 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.favorite_rounded, color: catColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '$sys / $dia',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      StatusBadge(
+                        label: cat,
+                        variant: _catVariant(cat),
+                        fontSize: 11,
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      ),
+                      if (pulse != null) ...[
+                        const Spacer(),
+                        Row(
+                          children: [
+                            const Icon(Icons.favorite_rounded, color: AppColors.danger, size: 13),
+                            const SizedBox(width: 3),
+                            Text(
+                              '$pulse',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${formatDateReadable(row['log_date'])} • ${formatTime12(row['log_time'])}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                    ),
+                  ),
+                  if (note != null && note.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      note,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+            ),
+          ],
+        ),
       ),
     );
   }

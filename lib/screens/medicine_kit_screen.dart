@@ -1,26 +1,42 @@
 import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../models/medication.dart';
+import '../theme/app_theme.dart';
 import '../utils/med_icons.dart';
+import '../widgets/app_card.dart';
+import '../widgets/status_badge.dart';
+import '../widgets/custom_bottom_sheet.dart';
+import '../widgets/empty_state.dart';
 
 class MedicineKitScreen extends StatefulWidget {
-  const MedicineKitScreen({super.key});
+  final bool isStandalone;
+  const MedicineKitScreen({super.key, this.isStandalone = false});
+
   @override
-  State<MedicineKitScreen> createState() => _MedicineKitScreenState();
+  State<MedicineKitScreen> createState() => MedicineKitScreenState();
 }
 
-class _MedicineKitScreenState extends State<MedicineKitScreen> {
+class MedicineKitScreenState extends State<MedicineKitScreen> {
   List<Map<String, dynamic>> _stock = [];
   List<Medication> _meds = [];
+  bool _loading = true;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    load();
+  }
 
-  Future<void> _load() async {
+  Future<void> load() async {
     final db = DatabaseHelper.instance;
     final stock = await db.getStock();
     final meds = await db.getActiveMedications();
-    setState(() { _stock = stock; _meds = meds; });
+    if (!mounted) return;
+    setState(() {
+      _stock = stock;
+      _meds = meds;
+      _loading = false;
+    });
   }
 
   Medication? _linkedMed(Map<String, dynamic> item) {
@@ -50,7 +66,7 @@ class _MedicineKitScreenState extends State<MedicineKitScreen> {
     return fraction.clamp(0.0, 1.0);
   }
 
-  Future<void> _addStock() async {
+  Future<void> addStock() async {
     final nameCtrl = TextEditingController();
     final qtyCtrl = TextEditingController();
     final unitCtrl = TextEditingController(text: 'tablets');
@@ -59,20 +75,22 @@ class _MedicineKitScreenState extends State<MedicineKitScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      builder: (bottomSheetContext) => StatefulBuilder(
+        builder: (modalContext, setSheetState) => CustomBottomSheet(
+          title: 'Log New Purchase',
+          subtitle: 'Add medicines or health supplies to your inventory',
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Log New Purchase', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
               DropdownButtonFormField<Medication?>(
-                decoration: const InputDecoration(labelText: 'Link to a medication (optional)', border: OutlineInputBorder()),
+                initialValue: linked,
+                decoration: const InputDecoration(
+                  labelText: 'Link to a Scheduled Medication',
+                  hintText: 'Select medication to track run-out dates',
+                  prefixIcon: Icon(Icons.link_rounded),
+                ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('None / other item')),
+                  const DropdownMenuItem(value: null, child: Text('None / General item')),
                   ..._meds.map((m) => DropdownMenuItem(value: m, child: Text(m.name))),
                 ],
                 onChanged: (v) => setSheetState(() {
@@ -80,35 +98,66 @@ class _MedicineKitScreenState extends State<MedicineKitScreen> {
                   if (v != null) nameCtrl.text = v.name;
                 }),
               ),
-              const SizedBox(height: 12),
-              TextField(controller: nameCtrl, style: const TextStyle(fontSize: 18),
-                  decoration: const InputDecoration(labelText: 'Medicine Name', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              TextField(
+                controller: nameCtrl,
+                style: const TextStyle(fontSize: 16),
+                decoration: const InputDecoration(
+                  labelText: 'Medicine Name *',
+                  hintText: 'e.g. Paracetamol, Metformin',
+                  prefixIcon: Icon(Icons.medication_outlined),
+                ),
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 18),
-                      decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder()))),
+                  Expanded(
+                    child: TextField(
+                      controller: qtyCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 16),
+                      decoration: const InputDecoration(
+                        labelText: 'Quantity *',
+                        hintText: '30',
+                        prefixIcon: Icon(Icons.tag_rounded),
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: unitCtrl, style: const TextStyle(fontSize: 18),
-                      decoration: const InputDecoration(labelText: 'Unit (tablets, ml)', border: OutlineInputBorder()))),
+                  Expanded(
+                    child: TextField(
+                      controller: unitCtrl,
+                      style: const TextStyle(fontSize: 16),
+                      decoration: const InputDecoration(
+                        labelText: 'Unit',
+                        hintText: 'tablets, ml, caps',
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 20),
-              SizedBox(width: double.infinity, height: 56,
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 52,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565F5), foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   onPressed: () async {
                     final qty = int.tryParse(qtyCtrl.text);
                     if (nameCtrl.text.trim().isEmpty || qty == null) return;
                     final db = DatabaseHelper.instance;
-                    await db.insertStock(nameCtrl.text.trim(), qty, unitCtrl.text.trim(),
-                        db.formatDate(DateTime.now()), linked?.id);
-                    if (mounted) Navigator.pop(context);
-                    _load();
+                    await db.insertStock(
+                      nameCtrl.text.trim(),
+                      qty,
+                      unitCtrl.text.trim(),
+                      db.formatDate(DateTime.now()),
+                      linked?.id,
+                    );
+                    if (bottomSheetContext.mounted) {
+                      Navigator.pop(bottomSheetContext);
+                    }
+                    if (mounted) load();
                   },
-                  child: const Text('Save Purchase', style: TextStyle(fontSize: 18)),
+                  child: const Text('Save to Kit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -120,111 +169,206 @@ class _MedicineKitScreenState extends State<MedicineKitScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final lowStockItems = _stock.where((item) {
+      final runOut = _runOutDate(item);
+      return runOut != null && runOut.difference(DateTime.now()).inDays <= 5;
+    }).length;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF1565F5), Color(0xFF3D8BFF)],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(16),
-            ),
+          // Overview Header Card
+          AppCard(
+            padding: const EdgeInsets.all(18),
             child: Row(
               children: [
-                const Icon(Icons.medical_services, color: Colors.white, size: 28),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text('Medicine Kit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 24),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle, color: Colors.white, size: 30),
-                  onPressed: _addStock,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Medicine Kit Stocks',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${_stock.length} item${_stock.length == 1 ? '' : 's'} tracked${lowStockItems > 0 ? ' • $lowStockItems low' : ''}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: lowStockItems > 0 ? AppColors.warning : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                          fontWeight: lowStockItems > 0 ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  tooltip: 'Add purchase',
+                  onPressed: addStock,
+                  icon: const Icon(Icons.add_rounded, size: 22),
                 ),
               ],
             ),
           ),
-          if (_stock.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
-                    const SizedBox(height: 8),
-                    const Text('No medicine stock logged yet.', style: TextStyle(fontSize: 15, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            )
-          else
+
+          const SizedBox(height: 16),
+
+          if (_stock.isEmpty) ...[
+            EmptyStateView(
+              icon: Icons.inventory_2_outlined,
+              title: 'Medicine Kit is Empty',
+              description: 'Log your purchased medications and bottles to automatically track when supplies run low.',
+              actionLabel: 'Log First Purchase',
+              onAction: addStock,
+            ),
+          ] else ...[
             ..._stock.map((item) {
               final runOut = _runOutDate(item);
               final fraction = _fractionLeft(item);
-              final low = runOut != null && runOut.difference(DateTime.now()).inDays <= 5;
+              final isLow = runOut != null && runOut.difference(DateTime.now()).inDays <= 5;
 
               return Container(
-                margin: const EdgeInsets.only(top: 12),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
-                  border: low ? Border.all(color: Colors.orange, width: 1.5) : null,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        color: (low ? Colors.orange : const Color(0xFF1565F5)).withOpacity(0.15),
-                        shape: BoxShape.circle,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: AppCard(
+                  padding: const EdgeInsets.all(16),
+                  border: isLow
+                      ? Border.all(color: AppColors.warning, width: 1.2)
+                      : null,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: (isLow ? AppColors.warning : AppColors.primary)
+                              .withValues(alpha: isDark ? 0.25 : 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.medication_rounded,
+                          color: isLow ? AppColors.warning : AppColors.primary,
+                          size: 22,
+                        ),
                       ),
-                      child: Icon(Icons.medication, color: low ? Colors.orange : const Color(0xFF1565F5)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 2),
-                          Text('${item['quantity']} ${item['unit']} • bought ${formatDateReadable(item['date_bought'])}',
-                              style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                          if (fraction != null && runOut != null) ...[
-                            const SizedBox(height: 8),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: fraction,
-                                minHeight: 6,
-                                backgroundColor: Colors.grey[300],
-                                color: low ? Colors.orange : const Color(0xFF1565F5),
-                              ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item['name'],
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    ),
+                                  ),
+                                ),
+                                if (isLow)
+                                  const StatusBadge(
+                                    label: 'Low Stock',
+                                    variant: BadgeVariant.warning,
+                                    fontSize: 10,
+                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Est. runs out: ${formatDateReadable(DatabaseHelper.instance.formatDate(runOut))}',
-                              style: TextStyle(fontSize: 12, color: low ? Colors.orange[800] : Colors.grey[600], fontWeight: low ? FontWeight.bold : null),
+                              '${item['quantity']} ${item['unit']} • Bought ${formatDateReadable(item['date_bought'])}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              ),
                             ),
+                            if (fraction != null && runOut != null) ...[
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: fraction,
+                                  minHeight: 6,
+                                  backgroundColor: isDark ? AppColors.darkSurfaceSubtle : const Color(0xFFE5E9F0),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isLow ? AppColors.warning : AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                'Est. runs out: ${formatDateReadable(DatabaseHelper.instance.formatDate(runOut))}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isLow ? FontWeight.w700 : FontWeight.w500,
+                                  color: isLow
+                                      ? AppColors.warning
+                                      : (isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
-                      onPressed: () async {
-                        await DatabaseHelper.instance.deleteStock(item['id'] as int);
-                        _load();
-                      },
-                    ),
-                  ],
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                        ),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Remove from Kit?'),
+                              content: Text('Remove ${item['name']} from stock?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Remove'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await DatabaseHelper.instance.deleteStock(item['id'] as int);
+                            load();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
+          ],
         ],
       ),
     );

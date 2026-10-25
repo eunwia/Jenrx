@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../models/medication.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import '../utils/album_colors.dart';
 import '../utils/med_icons.dart';
+import '../widgets/app_card.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   final Medication? existing;
@@ -42,13 +44,15 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         _everyDay = false;
         _selectedDays.addAll(med.frequency.split(',').map(int.parse));
       }
+    } else {
+      _selectedTimes.add('08:00'); // Sensible default morning time
     }
   }
 
   Future<void> _pickTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: const TimeOfDay(hour: 8, minute: 0),
     );
     if (picked != null) {
       final formatted =
@@ -66,13 +70,23 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedTimes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one time of day.')),
+        SnackBar(
+          content: const Text('Please add at least one scheduled time.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
     if (!_everyDay && _selectedDays.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick at least one day, or choose Every Day.')),
+        SnackBar(
+          content: const Text('Pick at least one day, or choose Every Day.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
@@ -113,25 +127,38 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       );
     }
 
-    if (mounted) Navigator.pop(context, true);
+    if (!mounted) return;
+    Navigator.pop(context, true);
   }
 
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove medication?'),
-        content: const Text('Past history will be kept.'),
+        title: const Text('Remove Medication?'),
+        content: const Text('This medication will be archived. Past dose history and compliance records will be safely preserved.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
-    if (confirm == true) {
+
+    if (confirm == true && mounted) {
       await NotificationService.cancelForMedication(widget.existing!);
       await DatabaseHelper.instance.archiveMedication(widget.existing!.id!);
-      if (mounted) Navigator.pop(context, true);
+      if (!mounted) return;
+      Navigator.pop(context, true);
     }
   }
 
@@ -146,152 +173,484 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
-    final chosen = colorFromHex(_selectedColor);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final chosenColor = colorFromHex(_selectedColor);
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEditing ? 'Edit Medication' : 'Add Medication')),
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit Medication' : 'Add Medication'),
+        actions: [
+          TextButton(
+            onPressed: _save,
+            child: const Text(
+              'Save',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
-            TextFormField(
-              controller: _nameController,
-              style: const TextStyle(fontSize: 20),
-              decoration: const InputDecoration(
-                labelText: 'Medicine Name',
-                border: OutlineInputBorder(),
+            // Interactive Live Preview Card
+            _buildLivePreview(chosenColor, isDark),
+            const SizedBox(height: 20),
+
+            // Section 1: Medication Details
+            _buildSectionHeader('MEDICATION DETAILS', isDark),
+            AppCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    onChanged: (_) => setState(() {}),
+                    textCapitalization: TextCapitalization.words,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Medicine Name *',
+                      hintText: 'e.g. Amlodipine, Vitamin C',
+                      prefixIcon: Icon(iconForKey(_selectedIcon), color: chosenColor),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Please enter medicine name' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _dosageController,
+                    onChanged: (_) => setState(() {}),
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Dosage / Strength',
+                      hintText: 'e.g. 500 mg, 1 Tablet, 5 ml',
+                      prefixIcon: Icon(Icons.scale_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _purposeController,
+                    onChanged: (_) => setState(() {}),
+                    textCapitalization: TextCapitalization.words,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Purpose / Tag (optional)',
+                      hintText: 'e.g. Blood Pressure, For Mom, Night',
+                      prefixIcon: Icon(Icons.label_outline_rounded),
+                    ),
+                  ),
+                ],
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 20),
-            TextFormField(
-              controller: _dosageController,
-              style: const TextStyle(fontSize: 20),
-              decoration: const InputDecoration(
-                labelText: 'Dosage (optional, e.g. 1 Tablet)',
-                border: OutlineInputBorder(),
+
+            // Section 2: Icon & Appearance
+            _buildSectionHeader('ICON & COLOR', isDark),
+            AppCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select Icon',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: medIconOptions.entries.map((entry) {
+                      final selected = _selectedIcon == entry.key;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedIcon = entry.key),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? chosenColor
+                                : (isDark ? AppColors.darkSurfaceSubtle : chosenColor.withValues(alpha: 0.1)),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selected ? chosenColor : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            entry.value,
+                            color: selected ? Colors.white : chosenColor,
+                            size: 24,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Select Accent Color',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: albumColorHex.map((hex) {
+                      final selected = hex == _selectedColor;
+                      final swatchColor = colorFromHex(hex);
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedColor = hex),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: swatchColor,
+                            shape: BoxShape.circle,
+                            border: selected
+                                ? Border.all(
+                                    color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                                    width: 3,
+                                  )
+                                : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: swatchColor.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: selected
+                              ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
-            TextFormField(
-              controller: _purposeController,
-              style: const TextStyle(fontSize: 20),
-              decoration: const InputDecoration(
-                labelText: 'For / Purpose (optional)',
-                hintText: 'e.g. Mom, My vitamins',
-                border: OutlineInputBorder(),
+
+            // Section 3: Schedule & Times
+            _buildSectionHeader('SCHEDULE & REMINDER TIMES', isDark),
+            AppCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Scheduled Times',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        ),
+                        onPressed: _pickTime,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Add Time'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ..._selectedTimes.map((t) => Chip(
+                            backgroundColor: isDark
+                                ? AppColors.darkSurfaceSubtle
+                                : AppColors.primaryLight,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                              width: 1,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            label: Text(
+                              formatTime12(t),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            deleteIconColor: AppColors.primary,
+                            onDeleted: () => setState(() => _selectedTimes.remove(t)),
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Divider(
+                    height: 1,
+                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Repeat Schedule',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            ),
+                          ),
+                          Text(
+                            _everyDay ? 'Every single day' : 'Specific days of the week',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Switch(
+                        value: _everyDay,
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (v) => setState(() => _everyDay = v),
+                      ),
+                    ],
+                  ),
+                  if (!_everyDay) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(7, (i) {
+                        final dayNum = i + 1;
+                        final selected = _selectedDays.contains(dayNum);
+                        return GestureDetector(
+                          onTap: () => setState(() {
+                            if (selected) {
+                              _selectedDays.remove(dayNum);
+                            } else {
+                              _selectedDays.add(dayNum);
+                            }
+                          }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.primary
+                                  : (isDark ? AppColors.darkSurfaceSubtle : const Color(0xFFF0F4F8)),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.primary
+                                    : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                                width: 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _dayLabels[i][0],
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: selected
+                                      ? Colors.white
+                                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 28),
-            const Text('Icon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              children: medIconOptions.entries.map((entry) {
-                final selected = _selectedIcon == entry.key;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedIcon = entry.key),
-                  child: Container(
-                    width: 52, height: 52,
-                    decoration: BoxDecoration(
-                      color: selected ? chosen : chosen.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(entry.value, color: selected ? Colors.white : chosen),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 28),
-            const Text('Color', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              children: albumColorHex.map((hex) {
-                final selected = hex == _selectedColor;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedColor = hex),
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      color: colorFromHex(hex),
-                      shape: BoxShape.circle,
-                      border: selected ? Border.all(color: Colors.black87, width: 3) : null,
-                    ),
-                    child: selected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 28),
-            const Text('Time(s) of Day', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                ..._selectedTimes.map((t) => Chip(
-                      label: Text(formatTime12(t), style: const TextStyle(fontSize: 16)),
-                      onDeleted: () => setState(() => _selectedTimes.remove(t)),
-                    )),
-                ActionChip(
-                  avatar: const Icon(Icons.add),
-                  label: const Text('Add Time', style: TextStyle(fontSize: 16)),
-                  onPressed: _pickTime,
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-            const Text('Frequency', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SwitchListTile(
-              title: const Text('Every Day', style: TextStyle(fontSize: 18)),
-              value: _everyDay,
-              onChanged: (v) => setState(() => _everyDay = v),
-            ),
-            if (!_everyDay)
-              Wrap(
-                spacing: 8,
-                children: List.generate(7, (i) {
-                  final dayNum = i + 1;
-                  final selected = _selectedDays.contains(dayNum);
-                  return FilterChip(
-                    label: Text(_dayLabels[i], style: const TextStyle(fontSize: 16)),
-                    selected: selected,
-                    onSelected: (v) => setState(() {
-                      if (v) {
-                        _selectedDays.add(dayNum);
-                      } else {
-                        _selectedDays.remove(dayNum);
-                      }
-                    }),
-                  );
-                }),
-              ),
-            const SizedBox(height: 36),
+
+            // Save Action Button
             SizedBox(
               width: double.infinity,
-              height: 60,
+              height: 52,
               child: ElevatedButton(
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: Text(isEditing ? 'Save Changes' : 'Save Medication', style: const TextStyle(fontSize: 20)),
+                child: Text(
+                  isEditing ? 'Save Changes' : 'Add Medication',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
             ),
+
             if (isEditing) ...[
-              const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: _delete,
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                label: const Text('Remove Medication', style: TextStyle(color: Colors.red, fontSize: 16)),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _delete,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: AppColors.danger, width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                  label: const Text(
+                    'Remove Medication',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLivePreview(Color chosenColor, bool isDark) {
+    final name = _nameController.text.trim().isEmpty
+        ? 'Medication Preview'
+        : _nameController.text.trim();
+    final dosage = _dosageController.text.trim().isEmpty
+        ? 'Dose will appear here'
+        : _dosageController.text.trim();
+    final purpose = _purposeController.text.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('LIVE PREVIEW', isDark),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: chosenColor.withValues(alpha: 0.35),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: chosenColor.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: chosenColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(iconForKey(_selectedIcon), color: chosenColor, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (purpose.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: chosenColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              purpose,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: chosenColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      dosage,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.check_circle_outline_rounded, color: AppColors.primary, size: 26),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
         ),
       ),
     );
