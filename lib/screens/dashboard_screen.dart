@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../db/database_helper.dart';
@@ -9,6 +10,7 @@ import '../utils/med_icons.dart';
 import '../widgets/app_card.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/mascot_companion.dart';
 import 'add_medication_screen.dart';
 import 'stock_screen.dart';
 
@@ -24,11 +26,19 @@ class DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   String _filter = 'all'; // 'all', 'pending', 'taken'
   int _lowStockCount = 0;
+  bool _justRecorded = false;
+  Timer? _recordedTimer;
 
   @override
   void initState() {
     super.initState();
     refresh();
+  }
+
+  @override
+  void dispose() {
+    _recordedTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> refresh() async {
@@ -79,11 +89,22 @@ class DashboardScreenState extends State<DashboardScreen> {
   Future<void> _toggleTaken(MedLog log) async {
     HapticFeedback.lightImpact();
     final db = DatabaseHelper.instance;
+    final markingAsTaken = !log.isTaken;
+
     if (log.isTaken) {
       await db.undoTaken(log.id!);
     } else {
       await db.markTaken(log.id!, DateTime.now().toIso8601String());
     }
+
+    if (markingAsTaken) {
+      _recordedTimer?.cancel();
+      setState(() => _justRecorded = true);
+      _recordedTimer = Timer(const Duration(milliseconds: 3000), () {
+        if (mounted) setState(() => _justRecorded = false);
+      });
+    }
+
     refresh();
   }
 
@@ -102,18 +123,29 @@ class DashboardScreenState extends State<DashboardScreen> {
     }
 
     if (_items.isEmpty) {
-      return EmptyStateView(
-        imageAsset: 'assets/images/no_meds_illus.png',
-        title: 'No Medications Today',
-        description: 'You have no scheduled doses for today. Stay hydrated and have a wonderful day!',
-        actionLabel: 'Add Medication',
-        onAction: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddMedicationScreen()),
-          );
-          if (result == true) refresh();
-        },
+      return RefreshIndicator(
+        onRefresh: refresh,
+        color: AppColors.primary,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+          children: [
+            const MascotCompanion(mood: CompanionMood.resting),
+            const SizedBox(height: 20),
+            EmptyStateView(
+              imageAsset: 'assets/images/no_meds_illus.png',
+              title: 'No Medications Today',
+              description: 'You have no scheduled doses for today. Stay hydrated and have a wonderful day!',
+              actionLabel: 'Add Medication',
+              onAction: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddMedicationScreen()),
+                );
+                if (result == true) refresh();
+              },
+            ),
+          ],
+        ),
       );
     }
 
@@ -121,6 +153,26 @@ class DashboardScreenState extends State<DashboardScreen> {
     final takenDoses = _items.where((i) => (i['log'] as MedLog).isTaken).length;
     final pendingDoses = totalDoses - takenDoses;
     final progress = totalDoses > 0 ? (takenDoses / totalDoses) : 0.0;
+
+    final pendingItems = _items.where((i) => !(i['log'] as MedLog).isTaken).toList();
+    String? nextMedName;
+    String? nextMedTime;
+    if (pendingItems.isNotEmpty) {
+      final next = pendingItems.first;
+      nextMedName = (next['med'] as Medication).name;
+      nextMedTime = formatTime12((next['log'] as MedLog).scheduledTime);
+    }
+
+    CompanionMood mood;
+    if (_justRecorded) {
+      mood = CompanionMood.celebrating;
+    } else if (totalDoses > 0 && takenDoses == totalDoses) {
+      mood = CompanionMood.allCompleted;
+    } else if (pendingDoses > 0) {
+      mood = CompanionMood.upcoming;
+    } else {
+      mood = CompanionMood.resting;
+    }
 
     final filteredItems = _items.where((i) {
       final isTaken = (i['log'] as MedLog).isTaken;
@@ -135,6 +187,14 @@ class DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
+          // Animated Medication Companion Mascot (Pip)
+          MascotCompanion(
+            mood: mood,
+            nextMedName: nextMedName,
+            nextMedTime: nextMedTime,
+            dosesRemaining: pendingDoses,
+          ),
+
           // Adherence Summary Card
           _buildSummaryCard(progress, takenDoses, totalDoses, isDark),
 
@@ -372,7 +432,14 @@ class DashboardScreenState extends State<DashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: AppCard(
-        padding: const EdgeInsets.all(16),
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddMedicationScreen(existing: med)),
+          );
+          if (result == true) refresh();
+        },
+        padding: const EdgeInsets.all(14),
         backgroundColor: taken
             ? (isDark
                 ? AppColors.successDark.withValues(alpha: 0.3)
@@ -383,11 +450,11 @@ class DashboardScreenState extends State<DashboardScreen> {
           children: [
             // Medicine Icon Container
             Container(
-              width: 52,
-              height: 52,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
                 color: medColor.withValues(alpha: isDark ? 0.25 : 0.12),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: medColor.withValues(alpha: 0.2),
                   width: 1,
@@ -396,23 +463,24 @@ class DashboardScreenState extends State<DashboardScreen> {
               child: Icon(
                 iconForKey(med.icon),
                 color: medColor,
-                size: 26,
+                size: 24,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
 
             // Med Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     children: [
-                      Flexible(
+                      Expanded(
                         child: Text(
                           med.name,
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: 16,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.3,
                             color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
@@ -422,11 +490,13 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 : AppColors.lightTextSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                       if (med.purpose.isNotEmpty) ...[
                         const SizedBox(width: 6),
                         Container(
+                          constraints: const BoxConstraints(maxWidth: 85),
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: medColor.withValues(alpha: 0.12),
@@ -439,15 +509,20 @@ class DashboardScreenState extends State<DashboardScreen> {
                               fontWeight: FontWeight.w700,
                               color: medColor,
                             ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Row(
+                  const SizedBox(height: 3),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 2,
                     children: [
-                      if (med.dosage.isNotEmpty) ...[
+                      if (med.dosage.isNotEmpty)
                         Text(
                           med.dosage,
                           style: TextStyle(
@@ -455,32 +530,31 @@ class DashboardScreenState extends State<DashboardScreen> {
                             fontWeight: FontWeight.w500,
                             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          ' • ',
-                          style: TextStyle(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 13,
                             color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
                           ),
-                        ),
-                      ],
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 13,
-                        color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        formatTime12(log.scheduledTime),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
+                          const SizedBox(width: 3),
+                          Text(
+                            formatTime12(log.scheduledTime),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                   if (taken && log.takenAt != null && log.takenAt!.length >= 16) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       'Taken at ${formatTime12(log.takenAt!.substring(11, 16))}',
                       style: const TextStyle(
@@ -493,10 +567,12 @@ class DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
 
-            // Edit button
+            // Edit button (compact touch target)
             IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               icon: Icon(
                 Icons.edit_outlined,
                 size: 18,
@@ -511,17 +587,18 @@ class DashboardScreenState extends State<DashboardScreen> {
                 if (result == true) refresh();
               },
             ),
+            const SizedBox(width: 4),
 
             // Check / Toggle Taken Button
             InkWell(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(20),
               onTap: () => _toggleTaken(log),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
                   color: taken ? AppColors.success : Colors.transparent,
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: taken
                         ? AppColors.success
@@ -533,8 +610,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      taken ? Icons.check_rounded : Icons.check_rounded,
-                      size: 16,
+                      Icons.check_rounded,
+                      size: 15,
                       color: taken
                           ? Colors.white
                           : (isDark ? AppColors.darkTextPrimary : AppColors.primary),
@@ -543,11 +620,11 @@ class DashboardScreenState extends State<DashboardScreen> {
                     Text(
                       taken ? 'Taken' : 'Take',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: taken
-                          ? Colors.white
-                          : (isDark ? AppColors.darkTextPrimary : AppColors.primary),
+                            ? Colors.white
+                            : (isDark ? AppColors.darkTextPrimary : AppColors.primary),
                       ),
                     ),
                   ],

@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:med_tracker/models/medication.dart';
 import 'package:med_tracker/models/med_log.dart';
 import 'package:med_tracker/utils/album_colors.dart';
 import 'package:med_tracker/utils/med_icons.dart';
 import 'package:med_tracker/theme/app_theme.dart';
+import 'package:med_tracker/widgets/mascot_companion.dart';
 
 void main() {
   group('MedTracker Theme & Utils Unit Tests', () {
@@ -76,6 +78,33 @@ void main() {
 
       final fallback = colorFromHex('invalid');
       expect(fallback.toARGB32(), 0xFF007AFF);
+    });
+
+    testWidgets('MascotCompanion renders with different moods', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MascotCompanion(
+              mood: CompanionMood.allCompleted,
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('PIP • HEALTH GUARDIAN'), findsOneWidget);
+      expect(find.textContaining('All done for today!'), findsOneWidget);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MascotCompanion(
+              mood: CompanionMood.upcoming,
+              nextMedName: 'Amlodipine',
+              nextMedTime: '8:00 AM',
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('Next dose: Amlodipine at 8:00 AM'), findsOneWidget);
     });
   });
 }

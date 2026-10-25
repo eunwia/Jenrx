@@ -75,6 +75,8 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) => StatefulBuilder(
         builder: (modalContext, setSheetState) => CustomBottomSheet(
           title: 'Log New Purchase',
@@ -98,24 +100,24 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
                   if (v != null) nameCtrl.text = v.name;
                 }),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               TextField(
                 controller: nameCtrl,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: 15),
                 decoration: const InputDecoration(
                   labelText: 'Medicine Name *',
                   hintText: 'e.g. Paracetamol, Metformin',
                   prefixIcon: Icon(Icons.medication_outlined),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: qtyCtrl,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 15),
                       decoration: const InputDecoration(
                         labelText: 'Quantity *',
                         hintText: '30',
@@ -127,7 +129,7 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
                   Expanded(
                     child: TextField(
                       controller: unitCtrl,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 15),
                       decoration: const InputDecoration(
                         labelText: 'Unit',
                         hintText: 'tablets, ml, caps',
@@ -137,28 +139,47 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final qty = int.tryParse(qtyCtrl.text);
-                    if (nameCtrl.text.trim().isEmpty || qty == null) return;
-                    final db = DatabaseHelper.instance;
-                    await db.insertStock(
-                      nameCtrl.text.trim(),
-                      qty,
-                      unitCtrl.text.trim(),
-                      db.formatDate(DateTime.now()),
-                      linked?.id,
-                    );
-                    if (bottomSheetContext.mounted) {
-                      Navigator.pop(bottomSheetContext);
-                    }
-                    if (mounted) load();
-                  },
-                  child: const Text('Save to Kit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () => Navigator.pop(bottomSheetContext),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () async {
+                        final qty = int.tryParse(qtyCtrl.text);
+                        if (nameCtrl.text.trim().isEmpty || qty == null) return;
+                        final db = DatabaseHelper.instance;
+                        await db.insertStock(
+                          nameCtrl.text.trim(),
+                          qty,
+                          unitCtrl.text.trim(),
+                          db.formatDate(DateTime.now()),
+                          linked?.id,
+                        );
+                        if (bottomSheetContext.mounted) {
+                          Navigator.pop(bottomSheetContext);
+                        }
+                        if (mounted) load();
+                      },
+                      child: const Text('Save to Kit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
