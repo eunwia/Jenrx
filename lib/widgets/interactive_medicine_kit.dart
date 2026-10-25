@@ -35,7 +35,6 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
 
   Timer? _blinkTimer;
   Timer? _autoOpenTimer;
-  bool _isOpen = false;
   bool _appIsResumed = true;
 
   @override
@@ -67,10 +66,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
 
     _openController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        setState(() => _isOpen = true);
         widget.onAnimationComplete?.call();
-      } else if (status == AnimationStatus.dismissed) {
-        setState(() => _isOpen = false);
       }
     });
 
@@ -80,7 +76,6 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
       final reduceMotion = MediaQuery.of(context).disableAnimations;
       if (reduceMotion || widget.initialOpen) {
         _openController.value = 1.0;
-        setState(() => _isOpen = true);
         widget.onAnimationComplete?.call();
       } else {
         // Slight anticipation pause before opening smoothly
@@ -257,7 +252,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                       ),
                     ),
 
-                    // 3. Pip Health Guardian (Pill character emerging from the cavity)
+                    // 3. Rain Health Guardian (Pill character emerging from the cavity)
                     Positioned(
                       bottom: 8 + kitHeight * 0.38,
                       child: Transform.translate(
@@ -268,7 +263,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                             opacity: pipVal.clamp(0.0, 1.0),
                             child: CustomPaint(
                               size: const Size(54, 62),
-                              painter: PipMascotPainter(
+                              painter: RainMascotPainter(
                                 mood: widget.lowStockCount > 0
                                     ? CompanionMood.upcoming
                                     : CompanionMood.allCompleted,
@@ -367,7 +362,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                             Row(
                               children: [
                                 Text(
-                                  _isOpen ? 'Pip • Medicine Kit Guardian' : 'Medicine Kit',
+                                  'Rain • Medicine Kit Guardian',
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
@@ -375,44 +370,41 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                                   ),
                                 ),
                                 const Spacer(),
-                                if (_isOpen)
-                                  InkWell(
-                                    onTap: replayOpening,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.replay_rounded,
-                                            size: 13,
+                                InkWell(
+                                  onTap: replayOpening,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.replay_rounded,
+                                          size: 13,
+                                          color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'Replay',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
                                             color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
                                           ),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            'Replay',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              _isOpen
-                                  ? (widget.totalItems == 0
-                                      ? 'Kit is empty. Tap Log Purchase below to track supplies!'
-                                      : (widget.lowStockCount > 0
-                                          ? 'Careful! ${widget.lowStockCount} medication supply is running low.'
-                                          : 'All ${widget.totalItems} supplies safe & accounted for!'))
-                                  : 'Tap to open and inspect your medicine stocks.',
+                              widget.totalItems == 0
+                                  ? 'Kit is empty. Tap + at bottom right to log supplies!'
+                                  : (widget.lowStockCount > 0
+                                      ? 'Careful! ${widget.lowStockCount} medication supply is running low.'
+                                      : 'All ${widget.totalItems} supplies safe & accounted for!'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: widget.lowStockCount > 0

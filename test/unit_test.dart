@@ -93,7 +93,7 @@ void main() {
           ),
         ),
       );
-      expect(find.textContaining('PIP • HEALTH GUARDIAN'), findsOneWidget);
+      expect(find.textContaining('RAIN • HEALTH GUARDIAN'), findsOneWidget);
       expect(find.textContaining('All done for today!'), findsOneWidget);
 
       await tester.pumpWidget(
@@ -156,13 +156,13 @@ void main() {
       );
 
       expect(find.byType(InteractiveMedicineKit), findsOneWidget);
-      expect(find.textContaining('Medicine Kit'), findsOneWidget);
+      expect(find.textContaining('Rain • Medicine Kit Guardian'), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 1200));
 
       expect(animationCompleted, true);
-      expect(find.textContaining('Pip • Medicine Kit Guardian'), findsOneWidget);
+      expect(find.textContaining('Rain • Medicine Kit Guardian'), findsOneWidget);
       expect(find.textContaining('running low'), findsOneWidget);
 
       await tester.tap(find.byType(InteractiveMedicineKit));
@@ -184,7 +184,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.textContaining('Pip • Medicine Kit Guardian'), findsOneWidget);
+      expect(find.textContaining('Rain • Medicine Kit Guardian'), findsOneWidget);
       expect(find.textContaining('Kit is empty'), findsOneWidget);
     });
   });

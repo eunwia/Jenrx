@@ -187,7 +187,7 @@ class DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
-          // Animated Medication Companion Mascot (Pip)
+          // Animated Medication Companion Mascot (Rain)
           MascotCompanion(
             mood: mood,
             nextMedName: nextMedName,

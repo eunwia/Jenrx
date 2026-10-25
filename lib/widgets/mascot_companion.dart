@@ -249,7 +249,7 @@ class _MascotCompanionState extends State<MascotCompanion>
                 builder: (context, _) {
                   return CustomPaint(
                     size: const Size(54, 62),
-                    painter: PipMascotPainter(
+                    painter: RainMascotPainter(
                       mood: widget.mood,
                       blinkProgress: _blinkController.value,
                       isDark: isDark,
@@ -281,7 +281,7 @@ class _MascotCompanionState extends State<MascotCompanion>
                           Icon(Icons.shield_rounded, size: 11, color: AppColors.primary),
                           SizedBox(width: 3),
                           Text(
-                            'PIP • HEALTH GUARDIAN',
+                            'RAIN • HEALTH GUARDIAN',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -317,12 +317,12 @@ class _MascotCompanionState extends State<MascotCompanion>
   }
 }
 
-class PipMascotPainter extends CustomPainter {
+class RainMascotPainter extends CustomPainter {
   final CompanionMood mood;
   final double blinkProgress;
   final bool isDark;
 
-  PipMascotPainter({
+  RainMascotPainter({
     required this.mood,
     required this.blinkProgress,
     required this.isDark,
@@ -483,9 +483,11 @@ class PipMascotPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant PipMascotPainter oldDelegate) {
+  bool shouldRepaint(covariant RainMascotPainter oldDelegate) {
     return oldDelegate.mood != mood ||
         oldDelegate.blinkProgress != blinkProgress ||
         oldDelegate.isDark != isDark;
   }
 }
+
+typedef PipMascotPainter = RainMascotPainter;

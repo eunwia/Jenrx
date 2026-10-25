@@ -242,73 +242,18 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
 
           const SizedBox(height: 16),
 
-          // Smoothly Animated Inventory Reveal
+          // Smoothly Animated Stock List / Empty State
           AnimatedOpacity(
             opacity: _revealed ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 380),
             curve: Curves.easeOutCubic,
             child: AnimatedSlide(
-              offset: _revealed ? Offset.zero : const Offset(0, 0.06),
+              offset: _revealed ? Offset.zero : const Offset(0, 0.05),
               duration: const Duration(milliseconds: 380),
               curve: Curves.easeOutCubic,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Inventory Action Bar
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 22),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tracked Inventory',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${_stock.length} medication${_stock.length == 1 ? '' : 's'} tracked${lowStockItems > 0 ? ' • $lowStockItems low' : ''}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: lowStockItems > 0 ? AppColors.warning : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                                  fontWeight: lowStockItems > 0 ? FontWeight.w600 : FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        FilledButton.tonalIcon(
-                          onPressed: addStock,
-                          icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Log Purchase', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
                   if (_stock.isEmpty) ...[
                     EmptyStateView(
                       icon: Icons.inventory_2_outlined,
