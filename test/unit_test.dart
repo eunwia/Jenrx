@@ -9,6 +9,9 @@ import 'package:med_tracker/utils/med_icons.dart';
 import 'package:med_tracker/theme/app_theme.dart';
 import 'package:med_tracker/widgets/mascot_companion.dart';
 import 'package:med_tracker/widgets/interactive_medicine_kit.dart';
+import 'package:med_tracker/widgets/app_card.dart';
+import 'package:med_tracker/widgets/status_badge.dart';
+import 'package:med_tracker/screens/settings_screen.dart';
 
 void main() {
   group('MedTracker Theme & Utils Unit Tests', () {
@@ -186,6 +189,123 @@ void main() {
       await tester.pump();
       expect(find.textContaining('Rain • Medicine Kit Guardian'), findsOneWidget);
       expect(find.textContaining('Kit is empty'), findsOneWidget);
+    });
+
+    testWidgets('InteractiveMedicineKit renders without overflow at Large text size', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(340, 700),
+              textScaler: TextScaler.linear(1.25),
+              disableAnimations: true,
+            ),
+            child: Scaffold(
+              body: InteractiveMedicineKit(
+                totalItems: 5,
+                lowStockCount: 2,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.textContaining('Rain • Medicine Kit Guardian'), findsOneWidget);
+    });
+
+    testWidgets('SettingsScreen About & Privacy section renders without overflow at Large text size', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(340, 700),
+              textScaler: TextScaler.linear(1.25),
+            ),
+            child: SettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.pump();
+      expect(find.textContaining('100% Offline & Private'), findsOneWidget);
+      expect(find.textContaining('All health records stay securely on your device'), findsOneWidget);
+    });
+
+    testWidgets('Appointment card renders without overflow at Large text size', (tester) async {
+      final testAppt = Appointment(
+        id: 1,
+        title: 'Comprehensive Cardiology Checkup and Consultation',
+        hospital: 'St. Luke Medical Center - Global City Heart Institute',
+        doctor: 'Dr. Maria Santos, MD',
+        date: '2026-11-20',
+        time: '14:30',
+        reminderMinutes: 60,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(340, 700),
+              textScaler: TextScaler.linear(1.25),
+            ),
+            child: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    AppCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        testAppt.title,
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    StatusBadge(
+                                      label: formatTime12(testAppt.time),
+                                      variant: BadgeVariant.info,
+                                      fontSize: 11,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: [
+                                    Text(formatDateReadable(testAppt.date)),
+                                    Text('${testAppt.reminderMinutes}m reminder'),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.textContaining('Comprehensive Cardiology Checkup'), findsOneWidget);
     });
   });
 }

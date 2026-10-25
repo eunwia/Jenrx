@@ -886,17 +886,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'HOSPITAL APPOINTMENTS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  Expanded(
+                    child: Text(
+                      'HOSPITAL APPOINTMENTS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   StatusBadge(
                     label: '$upcomingCount Upcoming',
                     variant: upcomingCount > 0 ? BadgeVariant.info : BadgeVariant.neutral,
@@ -1118,6 +1122,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
@@ -1128,11 +1133,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             letterSpacing: -0.3,
                             color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       StatusBadge(
                         label: formatTime12(appt.time),
                         variant: BadgeVariant.info,
@@ -1143,55 +1148,74 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   const SizedBox(height: 4),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.business_rounded, size: 13, color: Colors.grey),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.business_rounded, size: 13, color: Colors.grey),
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          appt.hospital + (appt.doctor != null ? ' • ${appt.doctor}' : ''),
+                          appt.hospital + (appt.doctor != null && appt.doctor!.isNotEmpty ? ' • ${appt.doctor}' : ''),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      const Icon(Icons.event_rounded, size: 13, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text(
-                        formatDateReadable(appt.date),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
-                        ),
-                      ),
-                      if (appt.reminderMinutes > 0) ...[
-                        const SizedBox(width: 8),
-                        const Icon(Icons.alarm_on_rounded, size: 13, color: AppColors.primary),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${appt.reminderMinutes >= 1440 ? '1d' : '${appt.reminderMinutes}m'} reminder',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.event_rounded, size: 13, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            formatDateReadable(appt.date),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                            ),
                           ),
+                        ],
+                      ),
+                      if (appt.reminderMinutes > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.alarm_on_rounded, size: 13, color: AppColors.primary),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${appt.reminderMinutes >= 1440 ? '1d' : '${appt.reminderMinutes}m'} reminder',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
                     ],
                   ),
                   if (appt.location != null && appt.location!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.place_outlined, size: 13, color: Colors.grey),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(Icons.place_outlined, size: 13, color: Colors.grey),
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -1200,7 +1224,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               fontSize: 12,
                               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

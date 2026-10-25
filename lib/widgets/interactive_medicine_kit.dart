@@ -338,6 +338,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                     ],
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(7),
@@ -361,15 +362,19 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  'Rain • Medicine Kit Guardian',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                Expanded(
+                                  child: Text(
+                                    'Rain • Medicine Kit Guardian',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 8),
                                 InkWell(
                                   onTap: replayOpening,
                                   borderRadius: BorderRadius.circular(12),
@@ -398,7 +403,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Text(
                               widget.totalItems == 0
                                   ? 'Kit is empty. Tap + at bottom right to log supplies!'
@@ -412,6 +417,7 @@ class InteractiveMedicineKitState extends State<InteractiveMedicineKit>
                                     : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                                 fontWeight: widget.lowStockCount > 0 ? FontWeight.w600 : FontWeight.w400,
                               ),
+                              softWrap: true,
                             ),
                           ],
                         ),
