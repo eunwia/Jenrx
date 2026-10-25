@@ -249,7 +249,7 @@ class _MascotCompanionState extends State<MascotCompanion>
                 builder: (context, _) {
                   return CustomPaint(
                     size: const Size(54, 62),
-                    painter: _PipMascotPainter(
+                    painter: PipMascotPainter(
                       mood: widget.mood,
                       blinkProgress: _blinkController.value,
                       isDark: isDark,
@@ -317,12 +317,12 @@ class _MascotCompanionState extends State<MascotCompanion>
   }
 }
 
-class _PipMascotPainter extends CustomPainter {
+class PipMascotPainter extends CustomPainter {
   final CompanionMood mood;
   final double blinkProgress;
   final bool isDark;
 
-  _PipMascotPainter({
+  PipMascotPainter({
     required this.mood,
     required this.blinkProgress,
     required this.isDark,
@@ -483,7 +483,7 @@ class _PipMascotPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PipMascotPainter oldDelegate) {
+  bool shouldRepaint(covariant PipMascotPainter oldDelegate) {
     return oldDelegate.mood != mood ||
         oldDelegate.blinkProgress != blinkProgress ||
         oldDelegate.isDark != isDark;

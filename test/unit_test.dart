@@ -8,6 +8,7 @@ import 'package:med_tracker/utils/album_colors.dart';
 import 'package:med_tracker/utils/med_icons.dart';
 import 'package:med_tracker/theme/app_theme.dart';
 import 'package:med_tracker/widgets/mascot_companion.dart';
+import 'package:med_tracker/widgets/interactive_medicine_kit.dart';
 
 void main() {
   group('MedTracker Theme & Utils Unit Tests', () {
@@ -138,6 +139,53 @@ void main() {
       expect(AppTextSize.medium.scaleFactor, 1.0);
       expect(AppTextSize.large.scaleFactor, 1.18);
       expect(AppTextSize.values.length, 3);
+    });
+
+    testWidgets('InteractiveMedicineKit renders closed and transitions to open state', (tester) async {
+      bool animationCompleted = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: InteractiveMedicineKit(
+              totalItems: 4,
+              lowStockCount: 1,
+              onAnimationComplete: () => animationCompleted = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(InteractiveMedicineKit), findsOneWidget);
+      expect(find.textContaining('Medicine Kit'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 1200));
+
+      expect(animationCompleted, true);
+      expect(find.textContaining('Pip • Medicine Kit Guardian'), findsOneWidget);
+      expect(find.textContaining('running low'), findsOneWidget);
+
+      await tester.tap(find.byType(InteractiveMedicineKit));
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+
+    testWidgets('InteractiveMedicineKit respects reduced motion immediately', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(
+              body: InteractiveMedicineKit(
+                totalItems: 0,
+                lowStockCount: 0,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.textContaining('Pip • Medicine Kit Guardian'), findsOneWidget);
+      expect(find.textContaining('Kit is empty'), findsOneWidget);
     });
   });
 }

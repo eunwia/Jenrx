@@ -8,10 +8,10 @@ class StockScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medicine Stocks & Kit'),
+        title: const Text('Kit & Stocks'),
       ),
       body: const SingleChildScrollView(
-        padding: EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: 14),
         child: MedicineKitScreen(isStandalone: true),
       ),
     );

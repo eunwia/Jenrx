@@ -85,43 +85,46 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                // Quick shortcut for Stocks
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const StockScreen()),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurfaceSubtle : AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.2),
-                          width: 1,
-                        ),
+                // Quick shortcut for Medicine Kit & Stocks
+                Tooltip(
+                  message: 'Open Medicine Kit & Stocks',
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const StockScreen()),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            size: 16,
-                            color: isDark ? AppColors.primary : AppColors.primary,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkSurfaceSubtle : AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.2),
+                            width: 1,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Kit & Stocks',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextPrimary : AppColors.primary,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.medical_services_outlined,
+                              size: 16,
+                              color: isDark ? AppColors.primary : AppColors.primary,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Text(
+                              'Kit & Stocks',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
