@@ -127,7 +127,7 @@ class _MascotCompanionState extends State<MascotCompanion>
         return 'Awesome job! Dose recorded 🎉';
       case CompanionMood.upcoming:
         if (widget.nextMedName != null && widget.nextMedTime != null) {
-          return 'Next dose: ${widget.nextMedName} at ${widget.nextMedTime} ⏰';
+          return 'Next dose: ${widget.nextMedName} at ${widget.nextMedTime}';
         }
         return '${widget.dosesRemaining} dose${widget.dosesRemaining == 1 ? '' : 's'} remaining today. I’ll keep watch!';
       case CompanionMood.resting:
@@ -234,9 +234,7 @@ class _MascotCompanionState extends State<MascotCompanion>
                     ),
                     const Spacer(),
                     if (widget.mood == CompanionMood.allCompleted)
-                      const Text('🌟', style: TextStyle(fontSize: 13))
-                    else if (widget.mood == CompanionMood.upcoming)
-                      const Text('⏰', style: TextStyle(fontSize: 13)),
+                      const Text('🌟', style: TextStyle(fontSize: 13)),
                   ],
                 ),
                 const SizedBox(height: 5),

@@ -85,6 +85,7 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<Medication?>(
+                isExpanded: true,
                 initialValue: linked,
                 decoration: const InputDecoration(
                   labelText: 'Link to a Scheduled Medication',
@@ -92,8 +93,14 @@ class MedicineKitScreenState extends State<MedicineKitScreen> {
                   prefixIcon: Icon(Icons.link_rounded),
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('None / General item')),
-                  ..._meds.map((m) => DropdownMenuItem(value: m, child: Text(m.name))),
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('None / General item', overflow: TextOverflow.ellipsis),
+                  ),
+                  ..._meds.map((m) => DropdownMenuItem(
+                        value: m,
+                        child: Text(m.name, overflow: TextOverflow.ellipsis),
+                      )),
                 ],
                 onChanged: (v) => setSheetState(() {
                   linked = v;
